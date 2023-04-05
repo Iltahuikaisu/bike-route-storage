@@ -1,0 +1,26 @@
+{
+  "name": "RouteStorage",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "compile": "tsc",
+    "start": "npm run compile && node ./dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@apollo/server": "^4.6.0",
+    "axios": "^1.3.4",
+    "csv-parse": "^5.3.6",
+    "dotenv": "^16.0.3",
+    "graphql": "^16.6.0",
+    "mongoose": "^7.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "typescript": "^5.0.3"
+  }
+}
