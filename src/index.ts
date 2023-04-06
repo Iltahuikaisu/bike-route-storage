@@ -2,22 +2,26 @@ import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 
 import mongoose from 'mongoose';
-import Route from './models/Route';
-import FetchedDataModel from './models/FetchedData';
-import { routeDataUrls } from './constants';
+import { RouteModel } from './models/Route.js';
+import { FetchedDataModel } from './models/FetchedData.js';
+import { routeDataUrls } from './constants.js';
 import axios from 'axios';
-import { parse } from 'csv-parse/.';
+import { ColumnOption, parse } from 'csv-parse';
+import * as dotenv from 'dotenv';
+import { log } from 'console';
+dotenv.config();
 
-const typeDefs = `
+const typeDefs = `#graphql
   type Route {
     id: String
-    return: String
-	depStatId: String
-	depStatName: String
-	retStatName: String
-	retStatId: Number
-	distance: Number
-	duration: Number;
+    departure: Int
+	  depStatId: Int
+	  depStatName: String
+    return: Int
+	  retStatName: String
+	  retStatId: Int
+	  distance: Int
+	  duration: Int
   }
 
   type DataFetch {
@@ -26,7 +30,8 @@ const typeDefs = `
   }
 
   type Query {
-    routes(page: number): [Route]
+    routes(page: Int): [Route]
+    data: [DataFetch]
   }
 `;
 
@@ -45,9 +50,9 @@ const routes = [
 
 const resolvers = {
     Query: {
-        routes: async ({ page }) => {
+        routes: async ({ page }: { page: number }) => {
             const result = 
-                await Route.find();
+                await RouteModel.find();
             console.log(page);
             return result;
         },
@@ -74,18 +79,49 @@ console.log(process.env.MONGO_URL);
 mongoose.connect(`${process.env.MONGO_URL}`);
 
 
-routeDataUrls.forEach(async element => {
-    const count =  await FetchedDataModel.countDocuments({url: element})
+for (let urlIndex = 0; urlIndex < routeDataUrls.length; urlIndex++) {
+    const routeUrl = routeDataUrls[urlIndex];
+    console.log('route',routeUrl);
+    const count =  await FetchedDataModel.countDocuments({url: routeUrl})
     if(count === 0) {
         try {
-            const result = await axios.get(element);
-
+            const result = await axios(
+              {
+                url: routeUrl,
+                method:"GET",
+                responseType: "stream",
+              }
+            );
             const processFile = async (data: any) => {
                 const records = [];
                 const parser = data
-                  .pipe(parse({
-                  // CSV options if any
-                  }));
+                  .pipe(parse(
+                    {
+                      delimiter: ",",
+
+                      columns: (firstRow):ColumnOption[] => {
+
+                        const columnMapper = new Map<string, string>(
+                          [
+                            ['Departure', 'departure'],
+                            ['Return', 'return'],
+                            ['Departure station id', 'depStatId'],
+                            ['Departure station name', 'depStatName'],
+                            ['Return station id', 'retStatId'],
+                            ['Return station name', 'retStatName'],
+                            ['Covered distance (m)', 'distance'],
+                            ['Duration (sec.)', 'duration'],
+                          ]
+                        );
+                          
+                        const columns = firstRow.map((name:string) => columnMapper.get(name.trim()));
+                        return columns;
+                      },
+                      cast: true,
+                      cast_date: true,
+                      skip_records_with_error: true,
+                    }
+                  ));
                 for await (const record of parser) {
                   // Work with each record
                   records.push(record);
@@ -94,12 +130,36 @@ routeDataUrls.forEach(async element => {
               };
 
             const routes = await processFile(result.data);
-            console.log(routes)
-            parse(result.data, {}, (array) => console.log(array[0]));
+
+            const batchSize = 1000;
+            console.log('Start import');
+            for (let i = 0; i < routes.length; i += batchSize) {
+              const end = i + batchSize < routes.length ? i + batchSize : routes.length - 1;
+              const batch = routes.slice(i, end).filter((value) => {
+                if(value.distance > 10 && value.duration > 10) {
+                  return true;
+                } 
+                return false;
+              });
+              process.stdout.write(`\rImporting csv ${urlIndex + 1}/${routeDataUrls.length} ${Math.round((100 * i)/routes.length)}% completed`);
+              try {
+                await RouteModel.create(batch);
+              } catch (e) {
+                console.error('Mongo error', e);
+              }
+
+            }
+            
         } catch (e) {
-            console.log(e)
+            console.error(e);
         }
+    } else {
+      console.error('already present', routeUrl)
     }
-});
+    await FetchedDataModel.create({url: routeUrl})
+
+};
 
 console.log(`Server ready at ${url} !!!`);
+
+export default null;

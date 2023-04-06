@@ -4,6 +4,4 @@ const fetchedDataSchema = new mongoose.Schema({
     url: String,
 })
 
-const FetchedDataModel = mongoose.model('FetchedData', fetchedDataSchema);
-
-export default FetchedDataModel;
+export const FetchedDataModel = mongoose.model('FetchedData', fetchedDataSchema);
