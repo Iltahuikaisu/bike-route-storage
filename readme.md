@@ -12,5 +12,4 @@ Node and npm installed
 5. npm install
 5. npm run start
 6. wait until all csv files are imported succesfully into MongoDb
-
-Db contents can be viewed from http://localhost:8081/
+7. Db contents can be viewed from http://localhost:8081/
