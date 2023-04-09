@@ -3,12 +3,16 @@ import { startStandaloneServer } from '@apollo/server/standalone';
 
 import mongoose from 'mongoose';
 import { RouteModel } from './models/Route.js';
+import { StationModel } from './models/Station.js';
 import { FetchedDataModel } from './models/FetchedData.js';
-import { routeDataUrls } from './constants.js';
+import { routeDataUrls, stationDataUrls } from './constants.js';
+
+import { ImportCsv } from './helpers/DataImport.js';
+
 import axios from 'axios';
 import { ColumnOption, parse } from 'csv-parse';
 import * as dotenv from 'dotenv';
-import { log } from 'console';
+
 dotenv.config();
 
 const typeDefs = `#graphql
@@ -19,9 +23,21 @@ const typeDefs = `#graphql
 	  depStatName: String
     return: Int
 	  retStatName: String
-	  retStatId: Int
+	  retStat: Station
 	  distance: Int
 	  duration: Int
+  }
+
+  type Station {
+    FID: Int
+    ID: Int
+    Name: String
+    Adress: String
+    City: String
+    Operator: String
+    Capacity: Int
+    x: Int
+    y: Int
   }
 
   type DataFetch {
@@ -78,87 +94,54 @@ const { url } = await startStandaloneServer(server, {
 console.log(process.env.MONGO_URL);
 mongoose.connect(`${process.env.MONGO_URL}`);
 
+// Import Routes into MongoDb if not already present
 
-for (let urlIndex = 0; urlIndex < routeDataUrls.length; urlIndex++) {
-    const routeUrl = routeDataUrls[urlIndex];
-    console.log('route',routeUrl);
-    const count =  await FetchedDataModel.countDocuments({url: routeUrl})
-    if(count === 0) {
-        try {
-            const result = await axios(
-              {
-                url: routeUrl,
-                method:"GET",
-                responseType: "stream",
-              }
-            );
-            const processFile = async (data: any) => {
-                const records = [];
-                const parser = data
-                  .pipe(parse(
-                    {
-                      delimiter: ",",
+await ImportCsv({
+  columns:(firstRow):ColumnOption[] => {
+    const columnMapper = new Map<string, string>(
+      [
+        ['Departure', 'departure'],
+        ['Return', 'return'],
+        ['Departure station id', 'depStatId'],
+        ['Departure station name', 'depStatName'],
+        ['Return station id', 'retStatId'],
+        ['Return station name', 'retStatName'],
+        ['Covered distance (m)', 'distance'],
+        ['Duration (sec.)', 'duration'],
+      ]
+    );
+      
+    const columns = firstRow.map((name:string) => columnMapper.get(name.trim()));
+    return columns;
+  },
+  csvUrls: routeDataUrls,
+  name: 'routes',
+  saveFunction: async (batch) => {
+    await RouteModel.insertMany(batch, {ordered: false});
+  },
+  validationFunction: (value) => {
+    if(value.distance > 10 && value.duration > 10) {
+      return true;
+    } 
+    return false;
+  }
+});
 
-                      columns: (firstRow):ColumnOption[] => {
-
-                        const columnMapper = new Map<string, string>(
-                          [
-                            ['Departure', 'departure'],
-                            ['Return', 'return'],
-                            ['Departure station id', 'depStatId'],
-                            ['Departure station name', 'depStatName'],
-                            ['Return station id', 'retStatId'],
-                            ['Return station name', 'retStatName'],
-                            ['Covered distance (m)', 'distance'],
-                            ['Duration (sec.)', 'duration'],
-                          ]
-                        );
-                          
-                        const columns = firstRow.map((name:string) => columnMapper.get(name.trim()));
-                        return columns;
-                      },
-                      cast: true,
-                      cast_date: true,
-                      skip_records_with_error: true,
-                    }
-                  ));
-                for await (const record of parser) {
-                  // Work with each record
-                  records.push(record);
-                }
-                return records;
-              };
-
-            const routes = await processFile(result.data);
-
-            const batchSize = 1000;
-            console.log('Start import');
-            for (let i = 0; i < routes.length; i += batchSize) {
-              const end = i + batchSize < routes.length ? i + batchSize : routes.length - 1;
-              const batch = routes.slice(i, end).filter((value) => {
-                if(value.distance > 10 && value.duration > 10) {
-                  return true;
-                } 
-                return false;
-              });
-              process.stdout.write(`\rImporting csv ${urlIndex + 1}/${routeDataUrls.length} ${Math.round((100 * i)/routes.length)}% completed`);
-              try {
-                await RouteModel.create(batch);
-              } catch (e) {
-                console.error('Mongo error', e);
-              }
-
-            }
-            
-        } catch (e) {
-            console.error(e);
-        }
-    } else {
-      console.error('already present', routeUrl)
-    }
-    await FetchedDataModel.create({url: routeUrl})
-
-};
+// Import Stadions into MongoDb if not already present
+await ImportCsv(
+  {
+    columns: (firstRow: string[]):ColumnOption[] => {
+      const columns = firstRow.map((name:string) => name.trim());
+      return columns;
+    },
+    csvUrls: stationDataUrls,
+    name: 'stations',
+    saveFunction: async (batch) => {
+      await StationModel.insertMany(batch, {ordered: false});
+    },
+    validationFunction: () => true,
+  }
+);
 
 console.log(`Server ready at ${url} !!!`);
 
