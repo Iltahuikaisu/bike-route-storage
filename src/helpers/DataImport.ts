@@ -25,7 +25,6 @@ export const ImportCsv = async ({
     for (let urlIndex = 0; urlIndex < urls.length; urlIndex++) {
         const routeUrl = urls[urlIndex];
 
-        console.log('route', routeUrl);
         const count = await FetchedDataModel.countDocuments({ url: routeUrl });
         if (count === 0) {
             try {
@@ -56,26 +55,26 @@ export const ImportCsv = async ({
                     } csv parse`
                 );
                 const importedObjects = await processFile(result.data);
-
                 const batchSize = 1000;
-                for (let i = 0; i < importedObjects.length; i += batchSize) {
-                    let time = performance.now();
-                    const end =
-                        i + batchSize < importedObjects.length
-                            ? i + batchSize
-                            : importedObjects.length - 1;
-                    const batch = importedObjects
-                        .slice(i, end)
+
+                while(importedObjects.length > 0) {
+                  const batch = importedObjects
+                        .splice(0, importedObjects.length > batchSize ? batchSize : importedObjects.length)
                         .filter(validationFunction);
-                    try {
+                  let time = performance.now();
+                    
+                  try {
                         await saveFunction(batch);
+                  } catch (e) {
+                        console.error('Mongo error');
+                  }
                         time = performance.now() - time;
                         let minutes = Math.trunc(
-                            (time * (importedObjects.length - i)) /
+                            (time * (importedObjects.length)) /
                                 (batchSize * 1000 * 60)
                         );
                         let seconds = (
-                            ((time * (importedObjects.length - i)) /
+                            ((time * (importedObjects.length)) /
                                 (batchSize * 1000)) %
                             60
                         ).toFixed(0);
@@ -84,9 +83,7 @@ export const ImportCsv = async ({
                                 urls.length
                             }, ${minutes}m ${seconds}s left`
                         );
-                    } catch (e) {
-                        console.error('Mongo error', e);
-                    }
+                    
                 }
                 process.stdout.write(
                     `\rImporting ${name} csv ${urlIndex + 1}/${
@@ -95,7 +92,7 @@ export const ImportCsv = async ({
                 );
                 await FetchedDataModel.create({ url: routeUrl });
             } catch (e) {
-                console.error(e);
+                console.error('Error');
             }
         } else {
             console.error('already present', routeUrl);

@@ -104,7 +104,6 @@ const resolvers = {
         },
         data: async () => {
             const result = await FetchedDataModel.find();
-            console.log(result);
             return result;
         },
     },
@@ -155,13 +154,12 @@ await ImportCsv({
     },
 });
 
-// Import Stadions into MongoDb if not already present
+// Import Stations into MongoDb if not already present
 await ImportCsv({
     columns: (firstRow: string[]): ColumnOption[] => {
         const columns = firstRow.map((name: string) =>
             name.trim() === 'ID' ? '_id' : name.trim()
         );
-        console.log(columns);
         return columns;
     },
     csvUrls: stationDataUrls,
