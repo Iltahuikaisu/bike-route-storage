@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose from 'mongoose';
 
 const routeSchema = new mongoose.Schema({
     return: {
@@ -37,6 +37,6 @@ const routeSchema = new mongoose.Schema({
         min: [10, 'Route duration less than 10s'],
         required: true,
     },
-})
+});
 
-export const RouteModel = mongoose.model('Route', routeSchema)
+export const RouteModel = mongoose.model('Route', routeSchema);

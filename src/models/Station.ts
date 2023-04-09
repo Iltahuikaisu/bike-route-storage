@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose from 'mongoose';
 
 const stationSchema = new mongoose.Schema({
     FID: {
@@ -39,6 +39,6 @@ const stationSchema = new mongoose.Schema({
     y: {
         type: Number,
     },
-})
+});
 
-export const StationModel = mongoose.model('Station', stationSchema)
+export const StationModel = mongoose.model('Station', stationSchema);
