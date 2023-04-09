@@ -1,44 +1,44 @@
-import mongoose from 'mongoose';
+import mongoose from 'mongoose'
 
 const stationSchema = new mongoose.Schema({
     FID: {
-		type: Number,
-		required:true,
-	},
-	ID: {
-		type: Number,
-		required:true,
-	},
-	Nimi: {
-		type:String,
-	},
-	Namn: {
-		type:String,
-	},
-	Osoite: {
-		type:String,
-	},
-	Adress: {
-		type:String,
-	},
-	Kaupunki: {
-		type: String,
-	},
+        type: Number,
+        required: true,
+    },
+    ID: {
+        type: Number,
+        required: true,
+    },
+    Nimi: {
+        type: String,
+    },
+    Namn: {
+        type: String,
+    },
+    Osoite: {
+        type: String,
+    },
+    Adress: {
+        type: String,
+    },
+    Kaupunki: {
+        type: String,
+    },
     Stad: {
-		type: String,
-	},
+        type: String,
+    },
     Operaattor: {
-		type: String,
-	},
+        type: String,
+    },
     Kapasiteet: {
         type: Number,
     },
     x: {
-		type: Number,
-	},
+        type: Number,
+    },
     y: {
-		type: Number,
-	},
+        type: Number,
+    },
 })
 
-export const StationModel = mongoose.model('Station', stationSchema);
+export const StationModel = mongoose.model('Station', stationSchema)
