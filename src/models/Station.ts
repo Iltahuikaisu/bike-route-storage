@@ -5,7 +5,7 @@ const stationSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
-    ID: {
+    _id: {
         type: Number,
         required: true,
     },

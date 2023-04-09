@@ -10,7 +10,8 @@ const routeSchema = new mongoose.Schema({
         required: true,
     },
     depStatId: {
-        type: Date,
+        type: Number,
+        ref: 'Station',
         required: true,
     },
     depStatName: {
@@ -22,7 +23,8 @@ const routeSchema = new mongoose.Schema({
         required: true,
     },
     retStatId: {
-        type: String,
+        type: Number,
+        ref: 'Station',
         required: true,
     },
     distance: {

@@ -7,3 +7,5 @@ export const routeDataUrls = [
 export const stationDataUrls = [
     'https://opendata.arcgis.com/datasets/726277c507ef4914b0aec3cbcfcbfafc_0.csv',
 ]
+
+export const pageSize = 50

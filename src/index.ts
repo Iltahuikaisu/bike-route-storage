@@ -5,36 +5,39 @@ import mongoose from 'mongoose'
 import { RouteModel } from './models/Route.js'
 import { StationModel } from './models/Station.js'
 import { FetchedDataModel } from './models/FetchedData.js'
-import { routeDataUrls, stationDataUrls } from './constants.js'
+import { pageSize, routeDataUrls, stationDataUrls } from './constants.js'
 
 import { ImportCsv } from './helpers/DataImport.js'
 
-import axios from 'axios'
-import { ColumnOption, parse } from 'csv-parse'
+import { ColumnOption } from 'csv-parse'
 import * as dotenv from 'dotenv'
 
 dotenv.config()
 
 const typeDefs = `#graphql
   type Route {
-    id: String
-    departure: Int
-	  depStatId: Int
-	  depStatName: String
-    return: Int
-	  retStatName: String
-	  retStat: Station
-	  distance: Int
-	  duration: Int
+    id: String!
+    departure: String
+	depStatId: Station
+	depStatName: String
+    return: String
+	retStatName: String
+	retStatId: Station
+	distance: Int
+	duration: Int
   }
 
   type Station {
     FID: Int
-    ID: Int
-    Name: String
+    Nimi: String
+    Namn: String
+    Osoite:String
     Adress: String
+    Kaupunki: String
     City: String
-    Operator: String
+    Stad:String
+    Operaattor:String
+    Kapasiteet:Int
     Capacity: Int
     x: Int
     y: Int
@@ -46,29 +49,50 @@ const typeDefs = `#graphql
   }
 
   type Query {
-    routes(page: Int): [Route]
+    routes(page: Int, sortKey: String, sortDirection: String): [Route]
+    stations: [Station]
+    getStationById(id: Int): Station
     data: [DataFetch]
   }
 `
 
-const routes = [
-    {
-        id: '',
-        return: '',
-        depStatId: '',
-        depStatName: '',
-        retStatName: '',
-        retStatId: 2,
-        distance: 2,
-        duration: 2,
-    },
-]
-
 const resolvers = {
     Query: {
-        routes: async ({ page }: { page: number }) => {
-            const result = await RouteModel.find()
-            console.log(page)
+        routes: async (_root: any, args: { page: number, sortKey:string, sortDirection: 'asc' | 'desc' }) => {
+            const {page, sortKey, sortDirection} = args;
+            const data = await RouteModel.find()
+                .sort([[sortKey ?? 'departure', sortDirection ?? 'desc']])
+                .skip( pageSize * page)
+                .limit(pageSize)
+                .populate(['depStatId', 'retStatId'])
+
+            const result = data.map((value) => ({
+                id: value._id,
+                departure: value.departure.toISOString(),
+                depStatId: value.depStatId,
+                depStatName: value.depStatName,
+                return: value.return.toISOString(),
+                retStatName: value.retStatName,
+                retStatId: value.retStatId,
+                distance: value.distance,
+                duration: value.duration,
+              }))
+            return result;
+        },
+        stations: async () => {
+            const data = await StationModel.find()
+            const result = data.map((value) => ({
+                FID: value.FID,
+                Name: value.Nimi,
+                Nimi: value.Nimi,
+                Adress: value.Osoite,
+                City: value.Kaupunki,
+                Operator: value.Operaattor,
+                Capacity: value.Kapasiteet,
+                x: value.x,
+                y: value.y,
+              }))
+
             return result
         },
         data: async () => {
@@ -77,6 +101,9 @@ const resolvers = {
             return result
         },
     },
+    Route: {
+
+    }
 }
 
 const server = new ApolloServer({
@@ -126,7 +153,8 @@ await ImportCsv({
 // Import Stadions into MongoDb if not already present
 await ImportCsv({
     columns: (firstRow: string[]): ColumnOption[] => {
-        const columns = firstRow.map((name: string) => name.trim())
+        const columns = firstRow.map((name: string) => name.trim() === 'ID' ? '_id' : name.trim())
+        console.log(columns)
         return columns
     },
     csvUrls: stationDataUrls,
