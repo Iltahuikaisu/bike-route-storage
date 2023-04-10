@@ -34,13 +34,11 @@ const typeDefs = `#graphql
     Osoite:String
     Adress: String
     Kaupunki: String
-    City: String
-    Stad:String
-    Operaattor:String
-    Kapasiteet:Int
-    Capacity: Int
-    x: Int
-    y: Int
+    Stad: String
+    Operaattor: String
+    Kapasiteet: Int
+    x: String
+    y: String
   }
 
   type DataFetch {
@@ -88,26 +86,17 @@ const resolvers = {
         },
         stations: async () => {
             const data = await StationModel.find();
-            const result = data.map((value) => ({
-                FID: value.FID,
-                Name: value.Nimi,
-                Nimi: value.Nimi,
-                Adress: value.Osoite,
-                City: value.Kaupunki,
-                Operator: value.Operaattor,
-                Capacity: value.Kapasiteet,
-                x: value.x,
-                y: value.y,
-            }));
-
-            return result;
+            return data;
         },
         data: async () => {
             const result = await FetchedDataModel.find();
             return result;
         },
     },
-    Route: {},
+    Station: {
+        x: (parent: any) => parent.x.toString(),
+        y: (parent: any) => parent.y.toString(),
+    },
 };
 
 const server = new ApolloServer({
@@ -118,7 +107,7 @@ const server = new ApolloServer({
 const { url } = await startStandaloneServer(server, {
     listen: { port: 4000 },
 });
-console.log(process.env.MONGO_URL);
+
 mongoose.connect(`${process.env.MONGO_URL}`);
 
 // Import Routes into MongoDb if not already present
@@ -170,6 +159,6 @@ await ImportCsv({
     validationFunction: () => true,
 });
 
-console.log(`Server ready at ${url} !!!`);
+console.log(`Server ready at ${url}`);
 
 export default null;

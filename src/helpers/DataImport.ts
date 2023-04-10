@@ -57,33 +57,36 @@ export const ImportCsv = async ({
                 const importedObjects = await processFile(result.data);
                 const batchSize = 1000;
 
-                while(importedObjects.length > 0) {
-                  const batch = importedObjects
-                        .splice(0, importedObjects.length > batchSize ? batchSize : importedObjects.length)
+                while (importedObjects.length > 0) {
+                    const batch = importedObjects
+                        .splice(
+                            0,
+                            importedObjects.length > batchSize
+                                ? batchSize
+                                : importedObjects.length
+                        )
                         .filter(validationFunction);
-                  let time = performance.now();
-                    
-                  try {
+                    let time = performance.now();
+
+                    try {
                         await saveFunction(batch);
-                  } catch (e) {
+                    } catch (e) {
                         console.error('Mongo error');
-                  }
-                        time = performance.now() - time;
-                        let minutes = Math.trunc(
-                            (time * (importedObjects.length)) /
-                                (batchSize * 1000 * 60)
-                        );
-                        let seconds = (
-                            ((time * (importedObjects.length)) /
-                                (batchSize * 1000)) %
-                            60
-                        ).toFixed(0);
-                        process.stdout.write(
-                            `\rImporting ${name} csv ${urlIndex + 1}/${
-                                urls.length
-                            }, ${minutes}m ${seconds}s left`
-                        );
-                    
+                    }
+                    time = performance.now() - time;
+                    let minutes = Math.trunc(
+                        (time * importedObjects.length) /
+                            (batchSize * 1000 * 60)
+                    );
+                    let seconds = (
+                        ((time * importedObjects.length) / (batchSize * 1000)) %
+                        60
+                    ).toFixed(0);
+                    process.stdout.write(
+                        `\rImporting ${name} csv ${urlIndex + 1}/${
+                            urls.length
+                        }, ${minutes}m ${seconds}s left`
+                    );
                 }
                 process.stdout.write(
                     `\rImporting ${name} csv ${urlIndex + 1}/${
@@ -95,7 +98,7 @@ export const ImportCsv = async ({
                 console.error('Error');
             }
         } else {
-            console.error('already present', routeUrl);
+            console.error('Data import ok', routeUrl.slice(-11));
         }
     }
 };

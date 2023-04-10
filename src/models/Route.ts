@@ -39,6 +39,6 @@ const routeSchema = new mongoose.Schema({
     },
 });
 
-routeSchema.index({ departure: 1, return: 1}, { unique: true });
+routeSchema.index({ departure: 1, return: 1 }, { unique: true });
 
 export const RouteModel = mongoose.model('Route', routeSchema);
