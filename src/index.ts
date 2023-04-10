@@ -37,6 +37,8 @@ const typeDefs = `#graphql
     Stad: String
     Operaattor: String
     Kapasiteet: Int
+    RouteStartPoint: Int
+    RouteEndPoint: Int
     x: String
     y: String
   }
@@ -96,6 +98,14 @@ const resolvers = {
     Station: {
         x: (parent: any) => parent.x.toString(),
         y: (parent: any) => parent.y.toString(),
+        RouteStartPoint: async (parent: any) => {
+            const count = await RouteModel.find({depStatId: parent._id}).countDocuments();
+            return count;
+        },
+        RouteEndPoint: async (parent: any) => {
+            const count =  await RouteModel.find({retStatId: parent._id}).countDocuments();
+            return count;
+        },
     },
 };
 
