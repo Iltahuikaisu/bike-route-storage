@@ -27,6 +27,11 @@ const typeDefs = `#graphql
 	duration: Int
   }
 
+  type StationUsage {
+    stationName: String
+    count: Int
+  }
+
   type Station {
     FID: Int
     Nimi: String
@@ -37,8 +42,11 @@ const typeDefs = `#graphql
     Stad: String
     Operaattor: String
     Kapasiteet: Int
-    RouteStartPoint: Int
-    RouteEndPoint: Int
+    AverageDistance: Float
+    RoutesStartHereCount: Int
+    RoutesEndHereCount: Int
+    MostPopularDepartures: [StationUsage]
+    MostPopularReturns: [StationUsage]
     x: String
     y: String
   }
@@ -49,9 +57,9 @@ const typeDefs = `#graphql
   }
 
   type Query {
-    routes(page: Int, sortKey: String, sortDirection: String): [Route]
-    stations: [Station]
-    getStationById(id: Int): Station
+    routes(page: Int, sortKey: String, sortDirection: String, dateFrom: String, dateTo: String): [Route]
+    stations(dateFrom: String, dateTo: String): [Station]
+    getStationById(id: Int, months: [Int]): Station
     data: [DataFetch]
   }
 `;
@@ -64,10 +72,15 @@ const resolvers = {
                 page: number;
                 sortKey: string;
                 sortDirection: 'asc' | 'desc';
+                dateFrom: string;
+                dateTo: string;
             }
         ) => {
-            const { page, sortKey, sortDirection } = args;
+            const { page, sortKey, sortDirection, dateFrom, dateTo } = args;
             const data = await RouteModel.find()
+                .where('departure')
+                .gt(Date.parse(dateFrom))
+                .lt(Date.parse(dateTo))
                 .sort([[sortKey ?? 'departure', sortDirection ?? 'desc']])
                 .skip(pageSize * page)
                 .limit(pageSize)
@@ -98,13 +111,116 @@ const resolvers = {
     Station: {
         x: (parent: any) => parent.x.toString(),
         y: (parent: any) => parent.y.toString(),
-        RouteStartPoint: async (parent: any) => {
-            const count = await RouteModel.find({depStatId: parent._id}).countDocuments();
+        RoutesStartHereCount: async (parent: any) => {
+            const count = await RouteModel.find({
+                depStatId: parent._id,
+            }).countDocuments();
             return count;
         },
-        RouteEndPoint: async (parent: any) => {
-            const count =  await RouteModel.find({retStatId: parent._id}).countDocuments();
+        RoutesEndHereCount: async (parent: any) => {
+            const count = await RouteModel.find({
+                retStatId: parent._id,
+            }).countDocuments();
             return count;
+        },
+        MostPopularDepartures: async (
+            parent: { _id: any },
+            args: { dateFrom: string; dateTo: string }
+        ) => {
+            // Get all routes that return here
+            let aggregationPipeline: any[] = [
+                { $match: { retStatId: parent._id } },
+            ];
+
+            if (args.dateFrom && args.dateTo) {
+                aggregationPipeline.push({
+                    $match: {
+                        departure: {
+                            $gte: Date.parse(args.dateFrom),
+                            $lt: Date.parse(args.dateTo),
+                        },
+                    },
+                });
+            }
+
+            // Group by departure station and count group size
+            aggregationPipeline = aggregationPipeline.concat([
+                {
+                    $group: {
+                        _id: '$depStatName',
+                        count: { $sum: 1 },
+                        stationName: '$depStatName',
+                    },
+                },
+                // Get 5 biggest size groups
+                { $sort: { count: -1 } },
+                { $limit: 5 },
+            ]);
+
+            let dataQuery = await RouteModel.aggregate(aggregationPipeline);
+            return dataQuery;
+        },
+        MostPopularReturns: async (
+            parent: { _id: any },
+            args: { dateFrom: string; dateTo: string }
+        ) => {
+            let aggregationPipeline: any = [
+                { $match: { depStatId: parent._id } },
+            ];
+
+            if (args.dateFrom && args.dateTo) {
+                aggregationPipeline.push({
+                    $match: {
+                        departure: {
+                            $gte: Date.parse(args.dateFrom),
+                            $lt: Date.parse(args.dateTo),
+                        },
+                    },
+                });
+            }
+
+            // Group by departure station and count group size
+            aggregationPipeline = aggregationPipeline.concat([
+                {
+                    $group: {
+                        _id: '$retStatName',
+                        count: { $sum: 1 },
+                        stationName: { $first: '$retStatName' }
+                    },
+                },
+                // Get 5 biggest size groups
+                { $sort: { count: -1 } },
+                { $limit: 5 },
+            ]);
+
+            let dataQuery = await RouteModel.aggregate(aggregationPipeline).exec();
+
+            return dataQuery.map((value) => ({count: value.count, stationName: value._id})) ?? {};
+        },
+        AverageDistance: async (
+            parent: { _id: any },
+            args: { dateFrom: string; dateTo: string }
+        ) => {
+            let aggregationPipeline: any = [
+                { $match: { depStatId: parent._id },  },
+            ];
+
+            if (args.dateFrom && args.dateTo) {
+                aggregationPipeline.push({
+                    $match: {
+                        departure: {
+                            $gte: Date.parse(args.dateFrom),
+                            $lt: Date.parse(args.dateTo),
+                        },
+                    },
+                });
+            }
+
+            aggregationPipeline.push({
+                $group: {_id: '$depStatId', average: {$avg: "$distance" }}
+            })
+            const data = await RouteModel.aggregate(aggregationPipeline).exec()
+            return data[0].average ?? 0;
         },
     },
 };

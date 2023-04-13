@@ -40,7 +40,7 @@ const routeSchema = new mongoose.Schema({
 });
 
 routeSchema.index({ departure: 1, return: 1 }, { unique: true });
-routeSchema.index({ retStatId: 1});
-routeSchema.index({ depStatId: 1});
+routeSchema.index({ retStatId: 1 });
+routeSchema.index({ depStatId: 1 });
 
 export const RouteModel = mongoose.model('Route', routeSchema);
