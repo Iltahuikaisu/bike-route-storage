@@ -12,4 +12,4 @@ Node and npm installed
 5. npm install
 6. npm run start
 7. wait until all csv files are imported succesfully into MongoDb
-8. Db contents can be viewed from http://localhost:8081/
+8. GraphQL api can be viewed from http://localhost:4000/
